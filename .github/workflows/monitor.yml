@@ -2,9 +2,8 @@ name: Cathay Flight Monitor
 
 on:
   schedule:
-    # 每天早上 8 點（香港時間）執行一次 (UTC 0:00)
     - cron: '0 0 * * *'
-  workflow_dispatch: # 允許你隨時手動按按鈕執行測試
+  workflow_dispatch:
 
 jobs:
   run-monitor:
@@ -17,17 +16,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip' # 快取 Python 套件
 
-      - name: Install dependencies
-        run: |
-          pip install playwright
-          playwright install chromium
-          playwright install-deps
+      - name: Install Python dependencies
+        run: pip install playwright
+
+      # --- 關鍵優化：快取瀏覽器二進制文件 ---
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install Playwright Browser
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: playwright install chromium
+
+      - name: Install OS dependencies
+        run: playwright install-deps chromium
+      # ------------------------------------
 
       - name: Run Monitor Script
         run: python Monitor.py
 
       - name: Upload Screenshot
+        if: always() # 即使出錯也嘗試上傳截圖
         uses: actions/upload-artifact@v4
         with:
           name: monitor-screenshot
