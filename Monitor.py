@@ -1,28 +1,29 @@
-import os
-import time
-from playwright.sync_api import sync_playwright
+# main.py
+import asyncio
+from playwright.async_api import async_playwright
 
-def check_cathay_flights(origin, destination, start_date, end_date):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_context(user_agent="Mozilla/5.0 ...").new_page()
+async def run():
+    async with async_playwright() as p:
+        # 使用 commit 參數模擬真實瀏覽器啟動
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
         
-        # 國泰兌換機票的 URL (需根據實際路由調整)
-        url = f"https://www.cathaypacific.com/cx/zh_HK/book-a-trip/redeem-flights.html"
-        page.goto(url)
-        
-        # 這裡需要編寫模擬輸入機場、日期及點擊查詢的代碼
-        # 例如: page.fill('#input-origin', origin)
-        
-        # 檢查是否有 "可預訂" 的標誌
-        # result = page.query_selector_all('.available-class')
-        
-        browser.close()
-        return "Found!" if True else "None"
+        # 設置過大的超時是沒用的，我們改用分段等待
+        try:
+            print("啟動國泰監控...")
+            # 只等待 DOM 加載
+            await page.goto("https://www.cathaypacific.com/cx/zh_HK.html", wait_until="commit")
+            await asyncio.sleep(5)
+            
+            # 嘗試直接跳轉到搜尋結果 API (如果能分析出規律)
+            # 或者執行你的輸入邏輯...
+            
+            await page.screenshot(path="github_result.png")
+            print("監控完成")
+        except Exception as e:
+            print(f"錯誤: {e}")
+        finally:
+            await browser.close()
 
 if __name__ == "__main__":
-    # 從 GitHub Secrets 或環境變數獲取參數
-    origin = os.getenv("ORIGIN", "HKG")
-    dest = os.getenv("DEST", "NRT")
-    # 執行查詢邏輯...
-    print(f"Checking {origin} to {dest}...")
+    asyncio.run(run())
