@@ -1,50 +1,53 @@
-import requests
-import json
-import time
+import asyncio
+from playwright.async_api import async_playwright
 
-def check_flights():
-    # 這是國泰搜尋航班的核心 API (範例)
-    url = "https://www.cathaypacific.com/cx/zh_HK/api/flight-availability.redeem.json"
-    
-    # 這裡是最關鍵的：偽裝成真實瀏覽器的 Headers
-    headers = {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "Origin": "https://www.cathaypacific.com",
-        "Referer": "https://www.cathaypacific.com/cx/zh_HK/book-a-trip/redeem-flights.html"
-    }
-    
-    # 構造搜尋條件 (根據 NRT 2026-12-24 調整)
-    payload = {
-        "upsell": "true",
-        "entryPoint": "REDEEM",
-        "cabinClass": "ECONOMY",
-        "destination": "NRT",
-        "origin": "HKG",
-        "travelDate": "20261224", # 日期格式需精確
-        "tripType": "ONE_WAY",
-        "adults": "1"
-    }
-
-    print(f"正在透過 API 查詢 HKG -> NRT (2026-12-24)...")
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+async def run():
+    async with async_playwright() as p:
+        # 使用一組更像真人的啟動參數
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-http2", 
+                "--disable-blink-features=AutomationControlled",
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+            ]
+        )
         
-        if response.status_code == 200:
-            data = response.json()
-            # 這裡解析 JSON 並判斷是否有位子
-            print("✅ 成功獲取數據！")
-            with open("flight_data.json", "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=4)
-            return True
-        else:
-            print(f"❌ API 請求失敗，狀態碼: {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"❌ 連線異常: {e}")
-        return False
+        # 設定香港當地的語言和時區
+        context = await browser.new_context(
+            locale="zh-HK",
+            timezone_id="Asia/Hong_Kong",
+            viewport={'width': 1920, 'height': 1080}
+        )
+        
+        page = await context.new_page()
+
+        try:
+            print("正在以偽裝模式進入國泰兌換頁面...")
+            # 關鍵：直接跳轉到一個較輕量的入口
+            url = "https://www.cathaypacific.com/cx/zh_HK/book-a-trip/redeem-flights.html"
+            
+            # 使用 wait_until="commit" 避免被廣告或追蹤腳本拖慢導致超時
+            await page.goto(url, wait_until="commit", timeout=60000)
+            
+            # 模擬人類等待：不要立刻操作，先停 15 秒讓 Akamai 防禦降低警戒
+            print("頁面已連線，模擬真人閱讀中...")
+            await asyncio.sleep(15)
+            
+            # 嘗試截取第一張圖，確認是否看到搜尋框
+            await page.screenshot(path="github_result.png")
+            print("✅ 初始截圖已完成")
+
+            # 如果截圖顯示有內容，我們就可以在此加入 fill("HKG") 等邏輯
+            
+        except Exception as e:
+            print(f"❌ 依然發生錯誤: {e}")
+            try:
+                await page.screenshot(path="github_result.png")
+            except:
+                pass
+        finally:
+            await browser.close()
 
 if __name__ == "__main__":
-    check_flights()
+    asyncio.run(run())
