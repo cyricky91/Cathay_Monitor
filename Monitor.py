@@ -23,20 +23,15 @@ async def run():
         page = await context.new_page()
 
         try:
-            print("正在以偽裝模式進入國泰兌換頁面...")
-            # 關鍵：直接跳轉到一個較輕量的入口
-            url = "https://www.cathaypacific.com/cx/zh_HK/book-a-trip/redeem-flights.html"
-            
-            # 使用 wait_until="commit" 避免被廣告或追蹤腳本拖慢導致超時
-            await page.goto(url, wait_until="commit", timeout=60000)
-            
-            # 模擬人類等待：不要立刻操作，先停 15 秒讓 Akamai 防禦降低警戒
-            print("頁面已連線，模擬真人閱讀中...")
-            await asyncio.sleep(15)
-            
-            # 嘗試截取第一張圖，確認是否看到搜尋框
+            print("嘗試低延遲連線...")
+            # 移除 wait_until，只要連上就開始截圖
+            await page.goto(url, timeout=90000) 
+    
+            # 手動給予足夠的固定等待時間，而不是等待網路閒置
+            await asyncio.sleep(20) 
+    
             await page.screenshot(path="github_result.png")
-            print("✅ 初始截圖已完成")
+            print("✅ 截圖完成")
 
             # 如果截圖顯示有內容，我們就可以在此加入 fill("HKG") 等邏輯
             
