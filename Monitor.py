@@ -1,25 +1,36 @@
-# main.py
 import asyncio
+import json
 from playwright.async_api import async_playwright
 
 async def run():
     async with async_playwright() as p:
-        # 使用 commit 參數模擬真實瀏覽器啟動
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
-        
-        # 設置過大的超時是沒用的，我們改用分段等待
+
+        # 監聽所有網路請求
+        async def handle_response(response):
+            # 尋找包含搜尋結果的 API 路徑（關鍵關鍵！）
+            if "availability" in response.url or "search" in response.url:
+                try:
+                    data = await response.json()
+                    print("✅ 發現機票數據 API!")
+                    with open("result.json", "w") as f:
+                        json.dump(data, f)
+                except:
+                    pass
+
+        page.on("response", handle_response)
+
         try:
-            print("啟動國泰監控...")
-            # 只等待 DOM 加載
-            await page.goto("https://www.cathaypacific.com/cx/zh_HK.html", wait_until="commit")
-            await asyncio.sleep(5)
+            print("正在連線國泰...")
+            # 這裡填入你手動操作後得到的「直接搜尋 URL」會更有效
+            await page.goto("https://www.cathaypacific.com/cx/zh_HK/book-a-trip/redeem-flights.html", wait_until="commit")
             
-            # 嘗試直接跳轉到搜尋結果 API (如果能分析出規律)
-            # 或者執行你的輸入邏輯...
+            # 模擬等待資料加載
+            await asyncio.sleep(20) 
             
             await page.screenshot(path="github_result.png")
-            print("監控完成")
+            print("監控任務完成。")
         except Exception as e:
             print(f"錯誤: {e}")
         finally:
