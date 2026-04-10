@@ -1,0 +1,32 @@
+name: Cathay Award Monitor
+
+on:
+  schedule:
+    # 每天香港時間早上 9:00 執行一次 (UTC 1:00)
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 允許手動觸發測試
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Run Monitor
+        env:
+          ORIGIN: "HKG"
+          DEST: "NRT"
+          # 建議將通知 Token 放在 Secrets
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        run: python monitor.py
